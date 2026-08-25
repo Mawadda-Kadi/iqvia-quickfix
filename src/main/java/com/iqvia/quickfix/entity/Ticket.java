@@ -14,6 +14,7 @@ public class Ticket {
 
     private String title;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)

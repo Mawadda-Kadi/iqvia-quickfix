@@ -21,7 +21,7 @@ public class Attachment {
     private LocalDateTime uploadedAt;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "uploaded_by", nullable = false)
+    @JoinColumn(name = "uploaded_by_id", nullable = false)
     private User uploadedBy;
 
     @ManyToOne(optional = false)
