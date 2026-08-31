@@ -1,11 +1,15 @@
 package com.iqvia.quickfix.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "attachment")
+@Getter
+@Setter
 public class Attachment {
 
     @Id

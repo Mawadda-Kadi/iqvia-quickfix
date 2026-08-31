@@ -1,11 +1,15 @@
 package com.iqvia.quickfix.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tickets")
+@Getter
+@Setter
 public class Ticket {
 
     @Id
@@ -37,4 +41,17 @@ public class Ticket {
     @ManyToOne
     @JoinColumn(name = "assigned_support_id")
     private User assignedSupport;
+
+    @PrePersist
+    public void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }
+
