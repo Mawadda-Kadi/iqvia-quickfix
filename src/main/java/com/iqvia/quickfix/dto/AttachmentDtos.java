@@ -13,7 +13,7 @@ public class AttachmentDtos {
     public record AttachmentResponse(
             Long id,
             String fileName,
-            String filePath,
+            String contentType,
             Long fileSize,
             Long uploadedById,
             String uploadedByUsername,

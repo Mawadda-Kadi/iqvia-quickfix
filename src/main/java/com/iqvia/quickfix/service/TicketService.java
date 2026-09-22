@@ -5,6 +5,8 @@ import com.iqvia.quickfix.entity.Role;
 import com.iqvia.quickfix.entity.Ticket;
 import com.iqvia.quickfix.entity.TicketStatus;
 import com.iqvia.quickfix.entity.User;
+import com.iqvia.quickfix.exception.InvalidSupportUserException;
+import com.iqvia.quickfix.exception.InvalidTicketStatusException;
 import com.iqvia.quickfix.exception.TicketNotFoundException;
 import com.iqvia.quickfix.repository.TicketRepository;
 import org.springframework.data.domain.Sort;
@@ -17,19 +19,22 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final UserService userService;
+    private final MailService mailService;
 
     public TicketService(
             TicketRepository ticketRepository,
-            UserService userService
+            UserService userService,
+            MailService mailService
     ) {
         this.ticketRepository = ticketRepository;
         this.userService = userService;
+        this.mailService = mailService;
     }
 
     // ----------- Find All Tickets
 
     public List<TicketDtos.TicketResponse> findAllTickets() {
-        List<Ticket> tickets = ticketRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+        List<Ticket> tickets = ticketRepository.findAllByOrderByCreatedAtAsc();
         return tickets.stream()     // geht die Tickets einzeln durch
                 .map(this::toTicketResponse)    // wandelt jedes Ticket um
                 .toList();      // sammelt die umgewandelten Objekte in einer neuen Liste
@@ -60,6 +65,12 @@ public class TicketService {
 
         Ticket saved = ticketRepository.save(ticket);
 
+        mailService.sendTicketUpdateMail(
+                saved.getCreator().getEmail(),
+                "Ticket wurde erstellt",
+                "Ihr Ticket \"" + saved.getTitle() + "\" wurde erfolgreich erstellt und hat den Status OPEN."
+        );
+
         return toTicketResponse(saved);
     }
 
@@ -77,6 +88,12 @@ public class TicketService {
 
         Ticket saved = ticketRepository.save(ticket);
 
+        mailService.sendTicketUpdateMail(
+                saved.getCreator().getEmail(),
+                "Ticket wurde aktualisiert",
+                "Ihr Ticket \"" + saved.getTitle() + "\" wurde aktualisiert."
+        );
+
         return toTicketResponse(saved);
     }
 
@@ -89,15 +106,20 @@ public class TicketService {
         Ticket ticket = getTicketEntityById(id);
         User assignedSupport = userService.getUserEntityById(assignedSupportId);
 
-        // InvalidSupportUserException
         if (assignedSupport.getRole() != Role.SUPPORT) {
-            throw new IllegalArgumentException("Der Benutzer hat nicht die Rolle SUPPORT");
+            throw new InvalidSupportUserException(assignedSupportId);
         }
 
         ticket.setAssignedSupport(assignedSupport);
         ticket.setStatus(TicketStatus.IN_PROGRESS);
 
         Ticket saved = ticketRepository.save(ticket);
+
+        mailService.sendTicketUpdateMail(
+                saved.getCreator().getEmail(),
+                "Ticket wurde zugewiesen",
+                "Ihr Ticket \"" + ticket.getTitle() + "\" wird jetzt bearbeitet."
+        );
 
         return toTicketResponse(saved);
     }
@@ -107,8 +129,20 @@ public class TicketService {
 
         Ticket ticket = getTicketEntityById(id);
 
+        if (ticket.getStatus() != TicketStatus.IN_PROGRESS) {
+            throw new InvalidTicketStatusException(
+                    "Nur Tickets mit dem Status IN_PROGRESS können als gelöst markiert werden."
+            );
+        }
+
         ticket.setStatus(TicketStatus.RESOLVED);
         Ticket saved = ticketRepository.save(ticket);
+
+        mailService.sendTicketUpdateMail(
+                saved.getCreator().getEmail(),
+                "Ticket wurde als gelöst markiert",
+                "Ihr Ticket \"" + saved.getTitle() + "\" wurde vom Support als gelöst markiert."
+        );
 
         return toTicketResponse(saved);
     }
@@ -119,10 +153,48 @@ public class TicketService {
 
         Ticket ticket = getTicketEntityById(id);
 
+        if (ticket.getStatus() != TicketStatus.RESOLVED
+                && ticket.getStatus() != TicketStatus.IN_PROGRESS) {
+
+            throw new InvalidTicketStatusException(
+                    "Nur Tickets mit dem Status RESOLVED oder IN_PROGRESS können wieder geöffnet werden."
+            );
+        }
+
         ticket.setAssignedSupport(null);
         ticket.setStatus(TicketStatus.OPEN);
 
         Ticket saved = ticketRepository.save(ticket);
+
+        mailService.sendTicketUpdateMail(
+                saved.getCreator().getEmail(),
+                "Ticket wurde wieder geöffnet",
+                "Ihr Ticket \"" + saved.getTitle() + "\" wurde wieder geöffnet und steht erneut zur Bearbeitung zur Verfügung."
+        );
+
+        return toTicketResponse(saved);
+    }
+
+    // ----------- Close Ticket ----
+
+    public TicketDtos.TicketResponse closeTicket(Long id) {
+        Ticket ticket = getTicketEntityById(id);
+
+        if (ticket.getStatus() != TicketStatus.RESOLVED) {
+            throw new InvalidTicketStatusException(
+                    "Nur gelöste Tickets können geschlossen werden."
+            );
+        }
+
+        ticket.setStatus(TicketStatus.CLOSED);
+
+        Ticket saved = ticketRepository.save(ticket);
+
+        mailService.sendTicketUpdateMail(
+                saved.getCreator().getEmail(),
+                "Ticket wurde geschlossen",
+                "Ihr Ticket \"" + saved.getTitle() + "\" wurde geschlossen."
+        );
 
         return toTicketResponse(saved);
     }
@@ -130,7 +202,7 @@ public class TicketService {
     // ------------ Die hilfsmethoden --------------
 
     // Sucht ein Ticket anhand der ID und gibt die Ticket-Entity zurück
-    private Ticket getTicketEntityById(Long id) {
+    public Ticket getTicketEntityById(Long id) {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new TicketNotFoundException(id));
     }

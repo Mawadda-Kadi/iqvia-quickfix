@@ -28,4 +28,9 @@ public class Comment {
     @ManyToOne(optional = false)
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
+
+    @PrePersist
+    public void OnCreate() {
+        createdAt = LocalDateTime.now();
+    }
 }

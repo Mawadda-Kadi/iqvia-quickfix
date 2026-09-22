@@ -19,9 +19,7 @@ public class TicketDtos {
             @NotBlank String title,
             String description,
             Category category,
-            Priority priority,
-            TicketStatus status,
-            Long assignedSupportId
+            Priority priority
     ) {}
 
     public record TicketResponse(

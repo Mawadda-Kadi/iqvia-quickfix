@@ -18,9 +18,13 @@ public class Attachment {
 
     private String fileName;
 
-    private String filePath;
+    private String contentType;
 
     private Long fileSize;
+
+    @Lob
+    @Column(name = "data")
+    private byte[] data;
 
     private LocalDateTime uploadedAt;
 
@@ -31,4 +35,10 @@ public class Attachment {
     @ManyToOne(optional = false)
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
+
+    @PrePersist
+    private void onUpload() {
+        uploadedAt = LocalDateTime.now();
+    }
+
 }
