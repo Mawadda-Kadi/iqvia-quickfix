@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: quickfix-postgres
+
+    environment:
+      POSTGRES_DB: quickfix
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - quickfix_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  quickfix_postgres_data:
