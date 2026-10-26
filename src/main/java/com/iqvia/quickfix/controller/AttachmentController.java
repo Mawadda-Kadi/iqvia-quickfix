@@ -3,6 +3,7 @@ package com.iqvia.quickfix.controller;
 import com.iqvia.quickfix.dto.AttachmentDtos;
 import com.iqvia.quickfix.entity.Attachment;
 import com.iqvia.quickfix.service.AttachmentService;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -37,10 +38,10 @@ public class AttachmentController {
     @PostMapping
     public AttachmentDtos.AttachmentResponse createAttachment(
             @RequestParam("file") MultipartFile file,
-            @RequestParam Long uploadedById,
-            @PathVariable Long ticketId
+            @PathVariable Long ticketId,
+            Authentication authentication
     ) {
-        return attachmentService.createAttachment(file, uploadedById, ticketId);
+        return attachmentService.createAttachment(file, authentication.getName(), ticketId);
     }
 
     @DeleteMapping("/{id}")

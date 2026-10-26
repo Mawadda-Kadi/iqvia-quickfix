@@ -1,8 +1,11 @@
 package com.iqvia.quickfix.controller;
 
 import com.iqvia.quickfix.dto.TicketDtos;
+import com.iqvia.quickfix.entity.User;
 import com.iqvia.quickfix.service.TicketService;
+import com.iqvia.quickfix.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,9 +15,11 @@ import java.util.List;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final UserService userService;
 
-    public TicketController(TicketService ticketService) {
+    public TicketController(TicketService ticketService, UserService userService) {
         this.ticketService = ticketService;
+        this.userService = userService;
     }
 
     @GetMapping
@@ -24,25 +29,41 @@ public class TicketController {
 
     @GetMapping("/{id}")
     public TicketDtos.TicketResponse getTicketById(
-            @PathVariable Long id
+            @PathVariable Long id,
+            Authentication authentication
     ) {
-        return ticketService.getTicketById(id);
+        return ticketService.getTicketForUser(
+                id,
+                authentication.getName()
+        );
+    }
+
+    @GetMapping("/my")
+    public List<TicketDtos.TicketResponse> findMyTickets(
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+
+        User user = userService.getUserEntityByUsername(username);
+
+        return ticketService.findTicketsForUser(user.getId());
     }
 
     @PostMapping
     public TicketDtos.TicketResponse createTicket(
             @Valid @RequestBody TicketDtos.CreateTicketRequest request,
-            @RequestParam Long creatorId
+            Authentication authentication
     ) {
-        return ticketService.createTicket(request, creatorId);
+        return ticketService.createTicket(request, authentication.getName());
     }
 
     @PutMapping("/{id}")
     public TicketDtos.TicketResponse updateTicket(
             @PathVariable Long id,
-            @Valid @RequestBody TicketDtos.UpdateTicketRequest request
+            @Valid @RequestBody TicketDtos.UpdateTicketRequest request,
+            Authentication authentication
     ) {
-        return ticketService.updateTicket(id, request);
+        return ticketService.updateTicket(id, request, authentication.getName());
     }
 
     @PatchMapping("/{id}/assign")

@@ -8,6 +8,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+// Spring Security uses it to load a user from your database during login.
+// username → UserDetailsService → UserRepository → User → Spring Security checks password
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 

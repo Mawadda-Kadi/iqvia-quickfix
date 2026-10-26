@@ -10,6 +10,7 @@ import com.iqvia.quickfix.exception.InvalidTicketStatusException;
 import com.iqvia.quickfix.exception.TicketNotFoundException;
 import com.iqvia.quickfix.repository.TicketRepository;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -40,6 +41,34 @@ public class TicketService {
                 .toList();      // sammelt die umgewandelten Objekte in einer neuen Liste
     }
 
+    // ----------- Find All User's Tickets
+
+    public List<TicketDtos.TicketResponse> findTicketsForUser(Long userId) {
+        List<Ticket> tickets =
+                ticketRepository.findByCreatorIdOrderByCreatedAtDesc(userId);
+
+        return tickets.stream()
+                .map(this::toTicketResponse)
+                .toList();
+    }
+
+    // ----------- Get User's Ticket
+
+    public TicketDtos.TicketResponse getTicketForUser(
+            Long ticketId,
+            String username
+    ) {
+        Ticket ticket = getTicketEntityById(ticketId);
+        User user = userService.getUserEntityByUsername(username);
+
+        if (user.getRole() == Role.USER
+                && !ticket.getCreator().getId().equals(user.getId())) {
+            throw new AccessDeniedException("Kein Zugriff auf dieses Ticket.");
+        }
+
+        return toTicketResponse(ticket);
+    }
+
     // ------------ Get The Ticket By ID
 
     public TicketDtos.TicketResponse getTicketById(Long id) {
@@ -51,9 +80,9 @@ public class TicketService {
 
     public TicketDtos.TicketResponse createTicket(
             TicketDtos.CreateTicketRequest request,
-            Long creatorId
+            String username
     ) {
-        User creator = userService.getUserEntityById(creatorId);
+        User creator = userService.getUserEntityByUsername(username);
 
         Ticket ticket = new Ticket();
         ticket.setTitle(request.title());
@@ -78,9 +107,17 @@ public class TicketService {
 
     public TicketDtos.TicketResponse updateTicket(
             Long id,
-            TicketDtos.UpdateTicketRequest request
+            TicketDtos.UpdateTicketRequest request,
+            String username
     ) {
         Ticket ticket = getTicketEntityById(id);
+        User user = userService.getUserEntityByUsername(username);
+
+        if (user.getRole() == Role.USER
+                && !ticket.getCreator().getId().equals(user.getId())) {
+            throw new AccessDeniedException("Kein Zugriff auf dieses Ticket.");
+        }
+
         ticket.setTitle(request.title());
         ticket.setDescription(request.description());
         ticket.setCategory(request.category());
@@ -110,6 +147,12 @@ public class TicketService {
             throw new InvalidSupportUserException(assignedSupportId);
         }
 
+        if (ticket.getStatus() == TicketStatus.CLOSED) {
+            throw new InvalidTicketStatusException(
+                    "Ein geschlossenes Ticket kann keinem Support-Mitarbeiter zugewiesen werden."
+            );
+        }
+
         ticket.setAssignedSupport(assignedSupport);
         ticket.setStatus(TicketStatus.IN_PROGRESS);
 
@@ -118,13 +161,13 @@ public class TicketService {
         mailService.sendTicketUpdateMail(
                 saved.getCreator().getEmail(),
                 "Ticket wurde zugewiesen",
-                "Ihr Ticket \"" + ticket.getTitle() + "\" wird jetzt bearbeitet."
+                "Ihr Ticket \"" + saved.getTitle() + "\" wird jetzt bearbeitet."
         );
 
         return toTicketResponse(saved);
     }
 
-    // ---------- Resolve Ticket -------- (Add Checks Later)
+    // ---------- Resolve Ticket --------
     public TicketDtos.TicketResponse resolveTicket(Long id) {
 
         Ticket ticket = getTicketEntityById(id);
@@ -147,7 +190,7 @@ public class TicketService {
         return toTicketResponse(saved);
     }
 
-    // ----------- Reopen Ticket ---- (Add Checks Later)
+    // ----------- Reopen Ticket ----
 
     public TicketDtos.TicketResponse reopenTicket(Long id) {
 

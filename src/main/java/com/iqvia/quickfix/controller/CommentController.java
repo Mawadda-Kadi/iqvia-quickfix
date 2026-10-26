@@ -3,6 +3,7 @@ package com.iqvia.quickfix.controller;
 import com.iqvia.quickfix.dto.CommentDtos;
 import com.iqvia.quickfix.service.CommentService;
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -28,9 +29,13 @@ public class CommentController {
     @PostMapping
     public CommentDtos.CommentResponse createComment(
             @Valid @RequestBody CommentDtos.CreateCommentRequest request,
-            @RequestParam Long authorId,
-            @PathVariable Long ticketId
+            @PathVariable Long ticketId,
+            Authentication authentication
     ) {
-        return commentService.createComment(request, authorId, ticketId);
+        return commentService.createComment(
+                request,
+                authentication.getName(),
+                ticketId
+        );
     }
 }

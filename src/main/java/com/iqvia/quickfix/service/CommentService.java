@@ -2,10 +2,12 @@ package com.iqvia.quickfix.service;
 
 import com.iqvia.quickfix.dto.CommentDtos;
 import com.iqvia.quickfix.entity.Comment;
+import com.iqvia.quickfix.entity.Role;
 import com.iqvia.quickfix.entity.Ticket;
 import com.iqvia.quickfix.entity.User;
 import com.iqvia.quickfix.exception.CommentNotFoundException;
 import com.iqvia.quickfix.repository.CommentRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -47,11 +49,16 @@ public class CommentService {
 
     public CommentDtos.CommentResponse createComment(
             CommentDtos.CreateCommentRequest request,
-            Long authorId,
+            String username,
             Long ticketId
     ) {
         Ticket ticket = ticketService.getTicketEntityById(ticketId);
-        User author = userService.getUserEntityById(authorId);
+        User author = userService.getUserEntityByUsername(username);
+
+        if (author.getRole() == Role.USER
+                && !ticket.getCreator().getId().equals(author.getId())) {
+            throw new AccessDeniedException("Kein Zugriff auf dieses Ticket.");
+        }
 
         Comment comment = new Comment();
         comment.setText(request.text());

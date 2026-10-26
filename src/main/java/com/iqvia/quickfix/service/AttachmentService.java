@@ -2,12 +2,14 @@ package com.iqvia.quickfix.service;
 
 import com.iqvia.quickfix.dto.AttachmentDtos;
 import com.iqvia.quickfix.entity.Attachment;
+import com.iqvia.quickfix.entity.Role;
 import com.iqvia.quickfix.entity.Ticket;
 import com.iqvia.quickfix.entity.User;
 import com.iqvia.quickfix.exception.AttachmentNotFoundException;
 import com.iqvia.quickfix.exception.FileStorageException;
 import com.iqvia.quickfix.exception.InvalidAttachmentException;
 import com.iqvia.quickfix.repository.AttachmentRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -56,11 +58,18 @@ public class AttachmentService {
 
     public AttachmentDtos.AttachmentResponse createAttachment(
             MultipartFile file,
-            Long uploadedById,
+            String username,
             Long ticketId
     ) {
         Ticket ticket = ticketService.getTicketEntityById(ticketId);
-        User uploadedBy = userService.getUserEntityById(uploadedById);
+        User uploadedBy = userService.getUserEntityByUsername(username);
+
+        if (uploadedBy.getRole() == Role.USER
+                && !ticket.getCreator().getId().equals(uploadedBy.getId())) {
+            throw new AccessDeniedException(
+                    "Kein Zugriff auf dieses Ticket."
+            );
+        }
 
         // Datei prüfen
         if (file.isEmpty()) {
